@@ -1,0 +1,74 @@
+//Author: Matt Lineback
+//CSCI Parallel Programming HW2 
+//Code adapted from "mpi_global_sum1.c" on course Moodle page 
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+
+long long array_sum(int * array, int start, int end);
+int main(void) {
+
+	int test_array[] = {2,3,5,7,13,17,19};
+	int n = 7;
+	
+	int comm_sz;
+	int my_rank;
+
+	MPI_Init(NULL, NULL);
+	MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+	if (comm_sz != 2) {
+		printf("ERROR, this was designed for exactly 2 processes!\n");
+		exit(1);
+	}
+
+	int my_first_i;
+	int my_last_i;
+
+	if (n % comm_sz == 0) {
+		my_first_i = (n % comm_sz);
+		my_last_i = (n / comm_sz);
+	}
+	else {
+		my_first_i = ((n + 1) % comm_sz);
+		my_last_i = (n / comm_sz);
+	}
+	
+	long long local_sum;
+	if (my_rank == 1) {
+		local_sum = array_sum(test_array,my_first_i, my_last_i);
+		printf("local sum from proc 1%11d\n", local_sum);
+	}
+	if (my_rank == 0) {
+		local_sum = array_sum(test_array, my_last_i, n);
+		printf("local sum from proc 0%11d\n", local_sum);
+	}
+
+	//have to combine local sums into the global sum!
+	//first attempt: all send to proc 0
+	if (my_rank != 0) {
+		MPI_Send(&local_sum, 1, MPI_LONG_LONG_INT, 0, 0, MPI_COMM_WORLD);
+	}
+	else {
+		long long global_sum = local_sum;
+		for (int q = 1; q<comm_sz; ++q) {
+			long long other_sum;
+			MPI_Recv(&other_sum, 1, MPI_LONG_LONG_INT, q, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			global_sum += other_sum;
+		}
+		printf("total sum = %lld\n", global_sum);
+	}
+
+	MPI_Finalize();
+	return 0;
+}
+
+long long array_sum(int * array, int start, int end) {
+	long long sum = 0;
+	for (int i = start; i<end; ++i) {
+		sum += array[i];
+	}
+	return sum;
+}
