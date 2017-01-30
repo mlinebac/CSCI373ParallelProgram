@@ -43,7 +43,7 @@ int main(void) {
       MPI_Recv(&other_sum,1,MPI_DOUBLE,q,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       solution += other_sum;
     }
-    printf("Process Time is: %f\n", (MPI_Wtime() - startTime));
+  printf("Process Time is: %f\n", (MPI_Wtime() - startTime));
     printf("solution is %0.13f\n",solution);
   }
 
