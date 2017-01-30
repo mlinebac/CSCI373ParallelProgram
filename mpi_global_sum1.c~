@@ -39,11 +39,11 @@ int main(void) {
 	long long local_sum;
 	if (my_rank == 1) {
 		local_sum = array_sum(test_array,my_first_i, my_last_i);
-		printf("local sum from proc 1%lld\n", local_sum);
+		printf("local sum from proc 1: %lld\n", local_sum);
 	}
 	if (my_rank == 0) {
 		local_sum = array_sum(test_array, my_last_i, n);
-		printf("local sum from proc 0%lld\n", local_sum);
+		printf("local sum from proc 0: %lld\n", local_sum);
 	}
 
 	//have to combine local sums into the global sum!

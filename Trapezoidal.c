@@ -11,7 +11,7 @@
 
 	int main(void) {
 
-		double n = 1000, local_n;
+		double n = 10000, local_n;
 		double a = 1,b = 3, local_a, local_b;
 		double h;
 		double local_int, total_int;
@@ -24,7 +24,7 @@
 		MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
 		MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
-		h = (b - a) / n;//this is the delta x or the step size of our approximation
+		h = (b - a) /(double)n;//this is the delta x or the step size of our approximation
 		local_n = n / comm_sz;
 
 		local_a = a + my_rank * local_n * h;
@@ -42,7 +42,7 @@
 			}
 		}
 		if (my_rank == 0) {
-			printf("With n = %d trapezoids, our approximation\n", n);
+			printf("With n = %f trapezoids, our approximation\n", n);
 			printf("of the integral from %f to %f = %.15e\n", a, b, total_int);
 		}
 		MPI_Finalize();
