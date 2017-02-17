@@ -1,0 +1,13 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void){
+char name[] = "Matt Lineback";
+char dob[] = "June 19th, 1981";
+printf("Name: %s\n", name);
+printf("DOB: %s\n", dob);
+
+
+
+return 0;
+}
