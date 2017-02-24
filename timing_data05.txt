@@ -8,3 +8,9 @@ prob_Size   Num_proc  Proc_time   Solution
 10000000 1 0.055215 8.6666666666676
 100000000 1 0.552405 8.6666666666654
 1000000000 1 5.501454 8.6666666666643
+prob_Size   Num_proc  Proc_time   Solution
+32678 4 0.001528 8.6666660605595
+prob_Size   Num_proc  Proc_time   Solution
+32695 4 0.001183 8.6666664977100
+prob_Size   Num_proc  Proc_time   Solution
+32604 4 0.001520 8.6665277517056
