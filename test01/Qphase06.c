@@ -3,8 +3,9 @@
 #include <mpi.h>
 #include <stdlib.h>
 #include <math.h>
-
-//#define double M_PI = 3.14159265359
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -52,6 +53,15 @@ int main(int argc, char *argv[]) {
 	
 	localN = N/comm_sz;//assuming divisible
 
+	if (N%comm_sz!=0) {
+		printf("ERROR N must be divisible by comm_sz. Terminating.");
+		exit(1);
+	}
+	if (localN<2) {
+		printf("ERROR N (%d) must be at least twice as large as number of processes (%d). Terminating.",N,comm_sz);
+		exit(1);
+	}
+	
 	double * f0 = (double *)malloc(localN*sizeof(double));
 	double * f1 = (double *)malloc(localN*sizeof(double));
 	double * f2 = (double *)malloc(localN*sizeof(double));
@@ -146,12 +156,6 @@ int main(int argc, char *argv[]) {
 		step++;
 	}
 	
-//	printf("proc %d: ",my_rank);
-//	for (int i=0; i<localN; i++) {
-//		printf("%f\t",f2[i]);
-//	}
-//	printf("\n");
-
 	//free memory
 	//can't free unless reassign to original, ok in this program, but possible memory leak in others
 //	free(f0);
