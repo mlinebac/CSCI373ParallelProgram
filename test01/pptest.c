@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-//#define M_PI 3.14159265359
+#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -36,6 +36,7 @@ void writerow(int N, double rawdata[]) {
 		fclose(fp);
 	}
 }
+
 double initialCondition(double x, double y) {
 	//double sigma=0.01;//tight point
 	double sigma=0.1;//wider point
@@ -44,26 +45,18 @@ double initialCondition(double x, double y) {
 	double result = (1.0/(2.0*M_PI*sigma*sigma))*exp(-0.5*( ((x-mu)/sigma)*((x-mu)/sigma) +  ((y-mu)/sigma)*((y-mu)/sigma)   ))/max;
 	return result;
 }
-void printArray(double *array, int length) {
-  printf("[");
-  int i;
-  for (i = 0; i < length; i++) {
-		if (i != 0) {
-      printf("  ");
-    }
-    printf("%g", array[i]);
-  }
-  printf("]");
-}
 
 	
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 6;
+	int N = 12;
 	int localN;
 	int end = 120;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
+	
+	
+	
 	
 	MPI_Init(NULL,NULL);
 	MPI_Comm_size(MPI_COMM_WORLD,&comm_sz);
@@ -80,14 +73,16 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	//double * f = (double *)malloc(localN*sizeof(double));
-	//double * f1 = (double *)malloc(localN*sizeof(double));
-	//double * f2 = (double *)malloc(localN*sizeof(double));
+	//double * f0 = (double *)malloc(localN*sizeof(double));
+	
 	double localx = 1.0/(N-1)*my_rank*localN;
 	double localy = 1.0/(N-1)*my_rank*localN;
-	double f[6][6];
+	double f0[N][N];
+	double f1[N][N];
+	double fend[N][N];
 	double x;
 	double y;
+	int i,j;
 	
 	for (int i=0; i<localN; i++){
 		x = localx + (double)i*1.0/(N-1);
@@ -100,18 +95,52 @@ int main(int argc, char *argv[]) {
 		for (int j=0; j<=localN-1; j++){
 		f[i][j] = initialCondition(x,y);
 		printf("%f\t", f[i][j]);
-		
+	}
+}
 		/*f[0][j] = 0;
 		f[1][j] = 0;
 		f[i][0] = 0;
 		f[i][1] = 0;
-		*/
-	}
-	printf("\n");
-}	
+	*/
 	
-	//f[i][j] = initialCondition(x,y);
+		for(int j=0; j<localN; j++){
+			
+			f0[0][j] = 0;
+			f0[localN-1][j] = 0;
+			f0[i][0] = 0;
+			f0[i][localN-1] = 0;
+			
+		}
+	}
+	
+	for (int i=1; i<localN-1; i++){
+		for (int j=1; j<=localN-2; j++){
+			x = localx + (double)i*1.0/(N-1);
+			y = localy + (double)j*1.0/(N-1);
+			f0[i][j] = initialCondition(x,y);
+			f1[i][j] = initialCondition(x,y);
+	
+	}
+}	
+	for (int i=0; i<localN; i++){
+		for(int j=0; j<localN; j++){
+			printf("%f\t", f0[i][j]);
+		}
+		printf("\n");
+	}
+	
+	
+	
 	MPI_Finalize();
 	return 0;
 }
 	
+/*double f(double **array, int i , int j, int N){
+			
+			array[0][j] = 0;
+			array[N-1][j] = 0;
+			array[i][0] = 0;
+			array[i][N-1] = 0;
+			return array[i][j];
+		}
+*/
