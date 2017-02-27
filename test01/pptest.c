@@ -3,8 +3,8 @@
 #include <mpi.h>
 #include <stdlib.h>
 #include <math.h>
-
-#define M_PI 3.14159265359
+//#ifndef M_PI
+//#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -48,7 +48,7 @@ void printArray(double *array, int length) {
   printf("[");
   int i;
   for (i = 0; i < length; i++) {
-    if (i != 0) {
+		if (i != 0) {
       printf("  ");
     }
     printf("%g", array[i]);
@@ -56,10 +56,11 @@ void printArray(double *array, int length) {
   printf("]");
 }
 
+	
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 20;
+	int N = 6;
 	int localN;
 	int end = 120;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
@@ -70,22 +71,45 @@ int main(int argc, char *argv[]) {
 	
 	localN = N/comm_sz;//assuming divisible
 	
-	double * f0 = (double *)malloc(localN*sizeof(double));
+	if (N%comm_sz!=0) {
+		printf("ERROR N must be divisible by comm_sz. Terminating.");
+		exit(1);
+	}
+	if (localN<2) {
+		printf("ERROR N (%d) must be at least twice as large as number of processes (%d). Terminating.",N,comm_sz);
+		exit(1);
+	}
+	
+	//double * f = (double *)malloc(localN*sizeof(double));
 	//double * f1 = (double *)malloc(localN*sizeof(double));
 	//double * f2 = (double *)malloc(localN*sizeof(double));
+	double localx = 1.0/(N-1)*my_rank*localN;
+	double localy = 1.0/(N-1)*my_rank*localN;
+	double f[6][6];
+	double x;
+	double y;
 	
-	int i;
-	for(i=0; i<N; i++){
-		if(i == 0 || i == N - 1){
-			return 0;
-		}
-		f0[i] = initialCondition(0,1);
+	for (int i=0; i<localN; i++){
+		x = localx + (double)i*1.0/(N-1);
+		y = localy + (double)i*1.0/(N-1);
+		printf("this is x%f\t",x);
+		printf("this is y%f\t\n",y);
+}
+	int j;
+	for (int i=0; i<localN; i++){
+		for (int j=0; j<=localN-1; j++){
+		f[i][j] = initialCondition(x,y);
+		printf("%f\t", f[i][j]);
+		/*f[0][j] = 0;
+		f[1][j] = 0;
+		f[i][0] = 0;
+		f[i][1] = 0;
+		*/
 	}
-	printArray(f0,N);
+	printf("\n");
+}	
 	
-	
-	
-	free(f0);
+	//f[i][j] = initialCondition(x,y);
 	MPI_Finalize();
 	return 0;
 }
