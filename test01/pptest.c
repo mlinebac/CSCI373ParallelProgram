@@ -36,6 +36,7 @@ void writerow(int N, double rawdata[]) {
 		fclose(fp);
 	}
 }
+
 double initialCondition(double x, double y) {
 	//double sigma=0.01;//tight point
 	double sigma=0.1;//wider point
@@ -43,17 +44,6 @@ double initialCondition(double x, double y) {
 	double max = (1.0/(2.0*M_PI*sigma*sigma))*exp(-0.5*( ((0.5-mu)/sigma)*((0.5-mu)/sigma) +  ((0.5-mu)/sigma)*((0.5-mu)/sigma)   ));
 	double result = (1.0/(2.0*M_PI*sigma*sigma))*exp(-0.5*( ((x-mu)/sigma)*((x-mu)/sigma) +  ((y-mu)/sigma)*((y-mu)/sigma)   ))/max;
 	return result;
-}
-void printArray(double *array, int length) {
-  printf("[");
-  int i;
-  for (i = 0; i < length; i++) {
-		if (i != 0) {
-      printf("  ");
-    }
-    printf("%g", array[i]);
-  }
-  printf("]");
 }
 
 	
@@ -64,6 +54,9 @@ int main(int argc, char *argv[]) {
 	int localN;
 	int end = 120;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
+	
+	
+	
 	
 	MPI_Init(NULL,NULL);
 	MPI_Comm_size(MPI_COMM_WORLD,&comm_sz);
@@ -84,32 +77,39 @@ int main(int argc, char *argv[]) {
 	
 	double localx = 1.0/(N-1)*my_rank*localN;
 	double localy = 1.0/(N-1)*my_rank*localN;
-	double f[N][N];
+	double f0[N][N];
+	double f1[N][N];
+	double fend[N][N];
 	double x;
 	double y;
+	int i,j;
 	
 	for (int i=0; i<localN; i++){
-		x = localx + (double)i*1.0/(N-1);
-		y = localy + (double)i*1.0/(N-1);
-		printf("this is x%f\t",x);
-		printf("this is y%f\t\n",y);
-}
-	
-	int j;
-	for (int i=0; i<localN; i++){
-		for (int j=0; j<=localN-1; j++){
-		x = localx + (double)i*1.0/(N-1);
-		y = localy + (double)i*1.0/(N-1);
-		f[i][j] = initialCondition(x,y);
-		f[0][j] = 0.0;
-		f[localN-1][j] = 0.0;
-		f[i][0] = 0.0;
-		f[i][localN-1] = 0.0;
-		printf("%f\t", f[i][j]);
+		for(int j=0; j<localN; j++){
+			f0[0][j] = 0;
+			f0[localN-1][j] = 0;
+			f0[i][0] = 0;
+			f0[i][localN-1] = 0;
+		}
 	}
-	printf("\n");
-}	
 	
+	for (int i=1; i<localN-1; i++){
+		for (int j=1; j<=localN-2; j++){
+			x = localx + (double)i*1.0/(N-1);
+			y = localy + (double)j*1.0/(N-1);
+			f0[i][j] = initialCondition(x,y);
+			f1[i][j] = initialCondition(x,y);
+	
+		//printf("%f\t", f0[i][j]);
+	}
+	//printf("\n");
+}	
+	for (int i=0; i<localN; i++){
+		for(int j=0; j<localN; j++){
+			printf("%f\t", f0[i][j]);
+		}
+		printf("\n");
+	}
 	//f[i][j] = initialCondition(x,y);
 	MPI_Finalize();
 	return 0;
