@@ -100,6 +100,7 @@ int main(int argc, char *argv[]) {
 		for (int j=0; j<=localN-1; j++){
 		f[i][j] = initialCondition(x,y);
 		printf("%f\t", f[i][j]);
+		
 		/*f[0][j] = 0;
 		f[1][j] = 0;
 		f[i][0] = 0;
