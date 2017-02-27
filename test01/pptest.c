@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	//double * f = (double *)malloc(localN*sizeof(double));
+	//double * f0 = (double *)malloc(localN*sizeof(double));
 	
 	double localx = 1.0/(N-1)*my_rank*localN;
 	double localy = 1.0/(N-1)*my_rank*localN;
@@ -86,10 +86,12 @@ int main(int argc, char *argv[]) {
 	
 	for (int i=0; i<localN; i++){
 		for(int j=0; j<localN; j++){
+			
 			f0[0][j] = 0;
 			f0[localN-1][j] = 0;
 			f0[i][0] = 0;
 			f0[i][localN-1] = 0;
+			
 		}
 	}
 	
@@ -100,9 +102,8 @@ int main(int argc, char *argv[]) {
 			f0[i][j] = initialCondition(x,y);
 			f1[i][j] = initialCondition(x,y);
 	
-		//printf("%f\t", f0[i][j]);
+		
 	}
-	//printf("\n");
 }	
 	for (int i=0; i<localN; i++){
 		for(int j=0; j<localN; j++){
@@ -110,8 +111,19 @@ int main(int argc, char *argv[]) {
 		}
 		printf("\n");
 	}
-	//f[i][j] = initialCondition(x,y);
+	
+	
+	
 	MPI_Finalize();
 	return 0;
 }
 	
+/*double f(double **array, int i , int j, int N){
+			
+			array[0][j] = 0;
+			array[N-1][j] = 0;
+			array[i][0] = 0;
+			array[i][N-1] = 0;
+			return array[i][j];
+		}
+*/
