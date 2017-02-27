@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-//#define M_PI 3.14159265359
+#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -60,7 +60,7 @@ void printArray(double *array, int length) {
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 6;
+	int N = 12;
 	int localN;
 	int end = 120;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
@@ -81,11 +81,10 @@ int main(int argc, char *argv[]) {
 	}
 	
 	//double * f = (double *)malloc(localN*sizeof(double));
-	//double * f1 = (double *)malloc(localN*sizeof(double));
-	//double * f2 = (double *)malloc(localN*sizeof(double));
+	
 	double localx = 1.0/(N-1)*my_rank*localN;
 	double localy = 1.0/(N-1)*my_rank*localN;
-	double f[6][6];
+	double f[N][N];
 	double x;
 	double y;
 	
@@ -95,16 +94,18 @@ int main(int argc, char *argv[]) {
 		printf("this is x%f\t",x);
 		printf("this is y%f\t\n",y);
 }
+	
 	int j;
 	for (int i=0; i<localN; i++){
 		for (int j=0; j<=localN-1; j++){
+		x = localx + (double)i*1.0/(N-1);
+		y = localy + (double)i*1.0/(N-1);
 		f[i][j] = initialCondition(x,y);
+		f[0][j] = 0.0;
+		f[localN-1][j] = 0.0;
+		f[i][0] = 0.0;
+		f[i][localN-1] = 0.0;
 		printf("%f\t", f[i][j]);
-		/*f[0][j] = 0;
-		f[1][j] = 0;
-		f[i][0] = 0;
-		f[i][1] = 0;
-		*/
 	}
 	printf("\n");
 }	
