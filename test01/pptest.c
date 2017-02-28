@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-#define M_PI 3.14159265359
+//#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -46,7 +46,8 @@ double initialCondition(double x, double y) {
 	return result;
 }
 
-	
+void fInitOuterBounds(double **array, int localN);
+
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
@@ -54,8 +55,6 @@ int main(int argc, char *argv[]) {
 	int localN;
 	int end = 120;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
-	
-	
 	
 	
 	MPI_Init(NULL,NULL);
@@ -73,45 +72,26 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	//double * f0 = (double *)malloc(localN*sizeof(double));
+	double **f0 = malloc(N * sizeof *f0);
+	double **f1 = malloc(N * sizeof *f1);
+	double **fend = malloc(N * sizeof *fend);
+	
+	int i,j;
+	 for(i=0; i<N; i++){
+		 f0[i] = malloc(N*sizeof *f0[i]);
+		 f1[i] = malloc(N*sizeof *f1[i]);
+		 fend[i] = malloc(N*sizeof *fend[i]);
+	}
 	
 	double localx = 1.0/(N-1)*my_rank*localN;
 	double localy = 1.0/(N-1)*my_rank*localN;
-	double f0[N][N];
-	double f1[N][N];
-	double fend[N][N];
+	
+	double **originalf0 = f0;
+	double **originalf1 = f1;
+	double **originalfend = fend;
+	
 	double x;
-	double y;
-	int i,j;
-	
-	for (int i=0; i<localN; i++){
-		x = localx + (double)i*1.0/(N-1);
-		y = localy + (double)i*1.0/(N-1);
-		printf("this is x%f\t",x);
-		printf("this is y%f\t\n",y);
-}
-	int j;
-	for (int i=0; i<localN; i++){
-		for (int j=0; j<=localN-1; j++){
-		f[i][j] = initialCondition(x,y);
-		printf("%f\t", f[i][j]);
-	}
-}
-		/*f[0][j] = 0;
-		f[1][j] = 0;
-		f[i][0] = 0;
-		f[i][1] = 0;
-	*/
-	
-		for(int j=0; j<localN; j++){
-			
-			f0[0][j] = 0;
-			f0[localN-1][j] = 0;
-			f0[i][0] = 0;
-			f0[i][localN-1] = 0;
-			
-		}
-	}
+	double y; 
 	
 	for (int i=1; i<localN-1; i++){
 		for (int j=1; j<=localN-2; j++){
@@ -119,28 +99,51 @@ int main(int argc, char *argv[]) {
 			y = localy + (double)j*1.0/(N-1);
 			f0[i][j] = initialCondition(x,y);
 			f1[i][j] = initialCondition(x,y);
-	
 	}
 }	
-	for (int i=0; i<localN; i++){
-		for(int j=0; j<localN; j++){
-			printf("%f\t", f0[i][j]);
-		}
-		printf("\n");
+	if (my_rank == 0){
+		fInitOuterBounds(f0,N);
+		fInitOuterBounds(f1,N);
+		fInitOuterBounds(fend,N);
+	
+	}
+	
+	if(my_rank == comm_sz-1){
+		fInitOuterBounds(f0,localN);
+		fInitOuterBounds(f1,localN);
+		fInitOuterBounds(fend,localN);
 	}
 	
 	
+	for (int i=0; i<localN; i++){
+		for(int j=0; j<localN; j++){
+			printf("%f  ", f0[i][j]);
+			//printf("%f  ", f1[i][j]);
+		}
+			printf("\n");
+	}
+	
+	f0 = originalf0;
+	f1 = originalf1;
+	fend = originalfend;
+	free(f0);
+	free(f1);
+	free(fend);
 	
 	MPI_Finalize();
 	return 0;
 }
 	
-/*double f(double **array, int i , int j, int N){
-			
+void fInitOuterBounds(double **array, int localN){
+	int i,j;
+	for (int i=0; i<localN; i++){
+		for(int j=0; j<localN; j++){
 			array[0][j] = 0;
-			array[N-1][j] = 0;
+			array[localN-1][j] = 0;
 			array[i][0] = 0;
-			array[i][N-1] = 0;
-			return array[i][j];
+			array[i][localN-1] = 0;
+		//printf("%f  ", array[i][j]);
 		}
-*/
+		//printf("\n");
+	}
+}
