@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-#define M_PI 3.14159265359
+//#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -20,7 +20,7 @@ void writeheader(int N, int end) {
 	}
 }
 
-void writerow(int N, double rawdata[]) {
+void writerow(int N, double **rawdata) {
 	FILE *fp;
 	fp = fopen("testoutfile.pgm", "a");
 	if (fp == NULL) {
@@ -29,12 +29,12 @@ void writerow(int N, double rawdata[]) {
 	}
 	else {
 		for (int i=0; i<N; i++) {
-				
-			int val = rawdata[i]*127+127;
+				for(int j=0; i<N-1; j++){
+			int val = rawdata[i][j]*127+127;
 			fprintf(fp,"%d ",val);
 		}
 		fprintf(fp,"\n");
-	
+	}
 		fclose(fp);
 	}
 }
@@ -55,9 +55,9 @@ void printArray(double **array, int localN);
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 20;
+	int N = 6;
 	int localN;
-	int end = 8;//end=20N is roughly 1 period
+	int end = 6;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
 	
 	
@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
 		//compute interior of my domain
 		for (int i=1; i<localN-1; i++){
 		for (int j=1; j<=localN-2; j++){
-			fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			fend[i][j]= 0.01*(leftneighbor+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			
 		}
 	}
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
 		//compute left edge of my domain
 		if (my_rank!=0) {
 			int i=0;
-			fend[i][j] = 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			fend[i][j] = 0.01*(f1[i-1][j]+rightneighbor+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			
 		}
 		//compute right edge of my domain
