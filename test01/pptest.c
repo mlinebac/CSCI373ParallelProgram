@@ -19,7 +19,7 @@ void writeheader(int N, int end) {
 		fclose(fp);
 	}
 }
-void writerow(int N, double rawdata[]) {
+void writerow(int N, double **rawdata) {
 	FILE *fp;
 	fp = fopen("outfile.pgm", "a");
 	if (fp == NULL) {
@@ -27,7 +27,17 @@ void writerow(int N, double rawdata[]) {
 		exit(1);
 	}
 	else {
-		for (int i=0; i<N; i++) {
+		int i,j;
+	for (int i=0; i<N; i++){
+		for(int j=0; j<N; j++){
+			int val = rawdata[i][j]*127+127;
+			fprintf(fp,"%d ", val);
+		}
+			fprintf(fp,"\n");
+			fclose(fp);
+	}
+}
+}		/*for (int i=0; i<N; i++) {
 			int val = rawdata[i]*127+127;
 			fprintf(fp,"%d ",val);
 		}
@@ -35,7 +45,7 @@ void writerow(int N, double rawdata[]) {
 		fclose(fp);
 	}
 }
-
+*/
 
 
 double initialCondition(double x, double y) {
@@ -77,25 +87,26 @@ int main(int argc, char *argv[]) {
 	
 	double **f0 = malloc(N * sizeof *f0);
 	double **f1 = malloc(N * sizeof *f1);
-	double **fend = malloc(N * sizeof *fend);
+	//double **fend = malloc(N * sizeof *fend);
 	double **temp;
 	
-	double forOutput[N][N];
+	double **forOutput;
+	forOutput = malloc(N * sizeof(double));
 	
 	int i,j;
 	 for(i=0; i<N; i++){
 		 f0[i] = malloc(N*sizeof *f0[i]);
 		 f1[i] = malloc(N*sizeof *f1[i]);
-		 fend[i] = malloc(N*sizeof *fend[i]);
+		 //fend[i] = malloc(N*sizeof *fend[i]);
 		 
 	}
 	
 	double localx = 1.0/(N-1)*my_rank*localN;
 	double localy = 1.0/(N-1)*my_rank*localN;
 	
-	double **originalf0 = f0;
-	double **originalf1 = f1;
-	double **originalfend = fend;
+	//double **originalf0 = f0;
+	//double **originalf1 = f1;
+	//double **originalfend = fend;
 	
 	double x;
 	double y; 
@@ -113,25 +124,26 @@ int main(int argc, char *argv[]) {
 	if (my_rank == 0){
 		fInitLeftOuterBounds(f0,N);
 		fInitLeftOuterBounds(f1,N);
-		fInitLeftOuterBounds(fend,N);
+		//fInitLeftOuterBounds(fend,N);
 	
 	}
 	
 	if(my_rank == comm_sz-1){
 		fInitRightOuterBounds(f0,localN);
 		fInitRightOuterBounds(f1,localN);
-		fInitRightOuterBounds(fend,localN);
+		//fInitRightOuterBounds(fend,localN);
 	}
 	//printArray(f1, localN);
 	if (writeoutput){
 		MPI_Gather(f1, localN, MPI_DOUBLE, forOutput, localN, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		if (my_rank == 0){
+			printArray(forOutput, localN);
 			writeheader(N, end);
-			//writerow(N,forOutput);
+			writerow(N,forOutput);
 		}
 	}
 	
-	
+/*	
 	double leftneighbor=0.0;
 	double rightneighbor=0.0;
 	
@@ -179,7 +191,8 @@ int main(int argc, char *argv[]) {
 		if (writeoutput) {
 			MPI_Gather(fend,localN,MPI_DOUBLE,forOutput,localN,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			if (my_rank==0) {
-				//writerow(N,forOutput);
+				
+				writerow(N,forOutput);
 				//printArray(forOutput, localN);
 			}
 		}
@@ -192,13 +205,14 @@ int main(int argc, char *argv[]) {
 
 		step++;
 	}
+	*/
+	//f0 = originalf0;
+	//f1 = originalf1;
+	//fend = originalfend;
 	
-	f0 = originalf0;
-	f1 = originalf1;
-	fend = originalfend;
 	free(f0);
 	free(f1);
-	free(fend);
+	//free(fend);
 	free(forOutput);
 	
 	
