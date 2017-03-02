@@ -29,10 +29,12 @@ void writerow(int N, double rawdata[]) {
 	}
 	else {
 		for (int i=0; i<N; i++) {
+				
 			int val = rawdata[i]*127+127;
 			fprintf(fp,"%d ",val);
 		}
 		fprintf(fp,"\n");
+	
 		fclose(fp);
 	}
 }
@@ -46,14 +48,16 @@ double initialCondition(double x, double y) {
 	return result;
 }
 
-void fInitOuterBounds(double **array, int localN);
+void fInitLeftOuterBounds(double **array, int localN);
+void fInitRightOuterBounds(double **array, int localN);
+void printArray(double **array, int localN);
 
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
 	int N = 20;
 	int localN;
-	int end = 20;//end=20N is roughly 1 period
+	int end = 8;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
 	
 	
@@ -96,27 +100,29 @@ int main(int argc, char *argv[]) {
 	double x;
 	double y; 
 	
-	for (int i=1; i<localN-1; i++){
-		for (int j=1; j<=localN-2; j++){
+	for (int i=0; i<localN; i++){
+		for (int j=0; j<=localN; j++){
 			x = localx + (double)i*1.0/(N-1);
 			y = localy + (double)j*1.0/(N-1);
 			f0[i][j] = initialCondition(x,y);
 			f1[i][j] = initialCondition(x,y);
 	}
+	
 }	
+//printArray(f1, localN);
 	if (my_rank == 0){
-		fInitOuterBounds(f0,N);
-		fInitOuterBounds(f1,N);
-		fInitOuterBounds(fend,N);
+		fInitLeftOuterBounds(f0,N);
+		fInitLeftOuterBounds(f1,N);
+		fInitLeftOuterBounds(fend,N);
 	
 	}
 	
 	if(my_rank == comm_sz-1){
-		fInitOuterBounds(f0,localN);
-		fInitOuterBounds(f1,localN);
-		fInitOuterBounds(fend,localN);
+		fInitRightOuterBounds(f0,localN);
+		fInitRightOuterBounds(f1,localN);
+		fInitRightOuterBounds(fend,localN);
 	}
-	
+	//printArray(f1, localN);
 	if (writeoutput){
 		MPI_Gather(f1, localN, MPI_DOUBLE, forOutput, localN, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		if (my_rank == 0){
@@ -125,17 +131,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
-	for (int i=0; i<localN; i++){
-		for(int j=0; j<localN; j++){
-			printf("%f  ", f0[i][j]);
-			printf("%f  ", f1[i][j]);
-			printf("%f  ", fend[i][j]);
-		}
-			printf("\n");
-	}
 	
-	double leftneighbor=0;
-	double rightneighbor=0;
+	double leftneighbor=0.0;
+	double rightneighbor=0.0;
 	
 	int partnerRight = my_rank+1;
 	int partnerLeft = my_rank-1;
@@ -150,9 +148,9 @@ int main(int argc, char *argv[]) {
 	int step = 2;//current step
 	while (step<=end) {
 		//send right
-		MPI_Sendrecv(&f1[localN-1],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[1][localN-1],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		//send left
-		MPI_Sendrecv(&f1[0],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[1][0],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
 		//put next step in f2:
 		//compute interior of my domain
@@ -162,17 +160,20 @@ int main(int argc, char *argv[]) {
 			
 		}
 	}
+		//printArray(fend, localN);
 		//compute left edge of my domain
 		if (my_rank!=0) {
 			int i=0;
-			fend[i][j] = 0.01*(leftneighbor-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			fend[i][j] = 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			
 		}
 		//compute right edge of my domain
 		if (my_rank!=comm_sz-1) {
 			int i=localN-1;
-			fend[i][j] = 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+rightneighbor) + 2*f1[i][j]-f0[i][j];
+			fend[i][j] = 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			
 		}
-		
+		printArray(fend, localN);
 		//write output
 		if (writeoutput) {
 			MPI_Gather(fend,localN,MPI_DOUBLE,forOutput,localN,MPI_DOUBLE,0,MPI_COMM_WORLD);
@@ -190,7 +191,6 @@ int main(int argc, char *argv[]) {
 		step++;
 	}
 	
-	
 	f0 = originalf0;
 	f1 = originalf1;
 	fend = originalfend;
@@ -202,16 +202,30 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 	
-void fInitOuterBounds(double **array, int localN){
+void fInitLeftOuterBounds(double **array, int localN){
 	int i,j;
 	for (int i=0; i<localN; i++){
 		for(int j=0; j<localN; j++){
 			array[0][j] = 0;
-			array[localN-1][j] = 0;
 			array[i][0] = 0;
-			array[i][localN-1] = 0;
-		//printf("%f  ", array[i][j]);
 		}
-		//printf("\n");
+	}
+}
+void fInitRightOuterBounds(double **array, int localN){
+	int i,j;
+	for (int i=0; i<localN; i++){
+		for(int j=0; j<localN; j++){
+			array[localN-1][j] = 0;
+			array[i][localN-1] = 0;
+		}
+	}
+}
+void printArray(double **array, int localN){
+	int i,j;
+	for (int i=0; i<localN; i++){
+		for(int j=0; j<localN; j++){
+			printf("%f  ", array[i][j]);
+		}
+			printf("\n");
 	}
 }
