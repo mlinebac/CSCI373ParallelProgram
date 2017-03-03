@@ -4,11 +4,11 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-//#define M_PI 3.14159265359
+#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
-	fp = fopen("testoutfile.pgm", "w");
+	fp = fopen("outfile.pgm", "w");
 	if (fp == NULL) {
 		printf("sorry can't open testoutfile.pgm. Terminating.\n");
 		exit(1);
@@ -32,8 +32,8 @@ void writerow(int N, double **rawdata) {
 	for (int i=0; i<N; i++){
 		for(int j=0; j<N; j++){
 			//int val = rawdata[i][j];
-			
-			fprintf(fp,"%f ", rawdata[i][j]);
+			int val = rawdata[i][j]*127+127;
+			fprintf(fp,"%d ", val);
 		}
 			fprintf(fp,"\n");
 		}	
@@ -41,16 +41,7 @@ void writerow(int N, double **rawdata) {
 			
 	}
 
-}		/*for (int i=0; i<N; i++) {
-			int val = rawdata[i]*127+127;
-			fprintf(fp,"%d ",val);
-		}
-		fprintf(fp,"\n");
-		fclose(fp);
-	}
-}
-*/
-
+}		
 
 double initialCondition(double x, double y) {
 	//double sigma=0.01;//tight point
@@ -135,6 +126,7 @@ int main(int argc, char *argv[]) {
 		
 	}
 	printArray(f1, localN);
+	writeheader(localN, N);
 	writerow(localN, f1);
 	
 	
