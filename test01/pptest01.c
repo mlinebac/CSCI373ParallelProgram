@@ -28,20 +28,17 @@ void writerow(int N, double **rawdata) {
 	}
 	else {
 		int i,j;
-		rawdata = malloc(N * sizeof *rawdata);
-	for (i = 0; i < N; i++) {
-		rawdata[i] = malloc(N * sizeof *rawdata[i]);
-  }
+	
 	for (int i=0; i<N; i++){
 		for(int j=0; j<N; j++){
 			//int val = rawdata[i][j];
 			
-			fprintf(fp,"%d ", rawdata[i][j]);
+			fprintf(fp,"%f ", rawdata[i][j]);
 		}
 			fprintf(fp,"\n");
 		}	
 			fclose(fp);
-			free(rawdata);
+			
 	}
 
 }		/*for (int i=0; i<N; i++) {
