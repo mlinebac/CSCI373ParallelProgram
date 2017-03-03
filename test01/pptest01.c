@@ -7,10 +7,12 @@
 #define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
+	
 	FILE *fp;
-	fp = fopen("outfile.pgm", "w");
+	fileName = sprintf()
+	fp = fopen("output.pgm", "w");
 	if (fp == NULL) {
-		printf("sorry can't open testoutfile.pgm. Terminating.\n");
+		printf("sorry can't open output.pgm. Terminating.\n");
 		exit(1);
 	}
 	else {
@@ -21,26 +23,23 @@ void writeheader(int N, int end) {
 }
 void writerow(int N, double **rawdata) {
 	FILE *fp;
-	fp = fopen("outfile.pgm", "a");
+	fp = fopen("output.pgm", "a");
 	if (fp == NULL) {
 		printf("sorry can't open outfile.pgm. Terminating.\n");
 		exit(1);
 	}
 	else {
+		
 		int i,j;
-	
 	for (int i=0; i<N; i++){
 		for(int j=0; j<N; j++){
-			//int val = rawdata[i][j];
 			int val = rawdata[i][j]*127+127;
 			fprintf(fp,"%d ", val);
 		}
 			fprintf(fp,"\n");
 		}	
-			fclose(fp);
-			
+			fclose(fp);		
 	}
-
 }		
 
 double initialCondition(double x, double y) {
@@ -59,7 +58,7 @@ void printArray(double **array, int localN);
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 14;
+	int N = 6;
 	int localN;
 	int end = 6;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
@@ -82,15 +81,14 @@ int main(int argc, char *argv[]) {
 	
 	double **f0 = malloc(N * sizeof *f0);
 	double **f1 = malloc(N * sizeof *f1);
-	double **temp;
-	
+	double **forOutput = malloc(N * sizeof *forOutput);
 	
 	
 	int i,j;
 	 for(i=0; i<N; i++){
 		 f0[i] = malloc(N*sizeof *f0[i]);
 		 f1[i] = malloc(N*sizeof *f1[i]);
-		 
+		 forOutput[i] = malloc(N*sizeof *forOutput[i]);
 		 
 	}
 	
@@ -110,10 +108,10 @@ int main(int argc, char *argv[]) {
 			y = localy + (double)j*1.0/(N-1);
 			f0[i][j] = initialCondition(x,y);
 			f1[i][j] = initialCondition(x,y);
-	}
+		}
 	
-}	
-	//printArray(f1, localN);
+	}	
+	
 	if (my_rank == 0){
 		fInitLeftOuterBounds(f0,N);
 		fInitLeftOuterBounds(f1,N);
@@ -125,18 +123,20 @@ int main(int argc, char *argv[]) {
 		fInitRightOuterBounds(f1,localN);
 		
 	}
-	printArray(f1, localN);
-	writeheader(localN, N);
-	writerow(localN, f1);
-	
+
+	if (writeoutput){
+		MPI_Gather(f1, localN, MPI_DOUBLE, forOutput, localN, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		if (my_rank == 0){
+			writeheader(N, end);
+			writerow(N,forOutput);
+		}
+	}
 	
 	f0 = originalf0;
 	f1 = originalf1;
 	
-	
 	free(f0);
 	free(f1);
-	
 	
 	MPI_Finalize();
 	return 0;
