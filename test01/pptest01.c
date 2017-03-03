@@ -34,9 +34,9 @@ void writerow(int N, double **rawdata) {
   }
 	for (int i=0; i<N; i++){
 		for(int j=0; j<N; j++){
-			int val = rawdata[i][j];
+			//int val = rawdata[i][j];
 			
-			fprintf(fp,"%d ", val);
+			fprintf(fp,"%d ", rawdata[i][j]);
 		}
 			fprintf(fp,"\n");
 		}	
