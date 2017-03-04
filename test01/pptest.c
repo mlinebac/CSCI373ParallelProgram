@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	
-/*	
+	
 	double leftneighbor=0.0;
 	double rightneighbor=0.0;
 	

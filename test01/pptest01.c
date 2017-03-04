@@ -10,7 +10,7 @@ void writeheader(int N, int end) {
 	FILE *fp;
 	char outputfile[20];
 	int i;
-	for (int i=1; i<=end; i++){
+	for (int i=0; i<end; i++){
 		sprintf(outputfile,"output%04d.pgm", i);
 		fp = fopen(outputfile, "w");
 		
@@ -27,26 +27,25 @@ void writeheader(int N, int end) {
 void writerow(int N, int end, double **rawdata) {
 	FILE *fp;
 	char outputfile[20];
-	int i;
-	for(int i=1; i<=end; i++){
+	int i,j;
+	for(int i=0; i<end; i++){
 		sprintf(outputfile,"output%04d.pgm",i);
 		fp = fopen(outputfile,"a");
-	}
+	
 		if (fp == NULL) {
 			printf("sorry can't open outfile.pgm. Terminating.\n");
 			exit(1);
 		}
 		else {
-			
-		for(int i=0; i<end; i++){
+			//for(int i=0; i<end; i++){
 			for(int j=0; j<end; j++){
 				int val = rawdata[i][j]*127;
 				fprintf(fp,"%d ", val);
 			}
 			fprintf(fp,"\n");
-			
+			fclose(fp);	
 		}
-		fclose(fp);	
+		//fclose(fp);	
 	}
 		
 }
@@ -67,9 +66,9 @@ void printArray(double **array, int localN);
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 20;
+	int N = 24;
 	int localN;
-	int end = 20;//end=20N is roughly 1 period
+	int end = 24;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
 	
 	
@@ -90,13 +89,15 @@ int main(int argc, char *argv[]) {
 	
 	double **f0 = malloc(N * sizeof *f0);
 	double **f1 = malloc(N * sizeof *f1);
+	double **fend = malloc(N * sizeof *fend);
 	double **forOutput = malloc(N * sizeof *forOutput);
-	
+	double **temp;
 	
 	int i,j;
 	for(i=0; i<N; i++){
 		 f0[i] = malloc(N*sizeof *f0[i]);
 		 f1[i] = malloc(N*sizeof *f1[i]);
+		 fend[i] = malloc(N*sizeof *fend[i]);
 		 forOutput[i] = malloc(N*sizeof *forOutput[i]);	 
 	}
 	
@@ -105,6 +106,8 @@ int main(int argc, char *argv[]) {
 	
 	double **originalf0 = f0;
 	double **originalf1 = f1;
+	double **originalfend = fend;
+	//double **originalforOutput = forOutput;
 	
 	
 	double x;
@@ -138,12 +141,75 @@ int main(int argc, char *argv[]) {
 			writerow(N,end,forOutput);
 		}
 	}
+		
+	double leftneighbor=0.0;
+	double rightneighbor=0.0;
 	
+	int partnerRight = my_rank+1;
+	int partnerLeft = my_rank-1;
+	if (partnerRight==comm_sz) {
+		partnerRight=MPI_PROC_NULL;
+	}
+	if (partnerLeft==-1) {
+		partnerLeft=MPI_PROC_NULL;
+	}
+
+	//main loop
+	int step = 2;//current step
+	while (step<=end) {
+		//send right
+		MPI_Sendrecv(&f1[1][localN-1],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		//send left
+		MPI_Sendrecv(&f1[1][0],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+
+		//put next step in f2:
+		//compute interior of my domain
+		for (int i=1; i<localN-1; i++){
+		for (int j=1; j<=localN-2; j++){
+			fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			
+			
+		}
+	}
+		//printArray(fend, localN);
+		//compute left edge of my domain
+		if (my_rank!=0) {
+			int i=0;
+			fend[i][j] = 0.01*(leftneighbor+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			
+		}
+		//compute right edge of my domain
+		if (my_rank!=comm_sz-1) {
+			int i=localN-1;
+			fend[i][j] = 0.01*(f1[i-1][j]+rightneighbor+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			
+		}
+		//printArray(fend, localN);
+		//write output
+		if (writeoutput) {
+			MPI_Gather(fend,localN,MPI_DOUBLE,forOutput,localN,MPI_DOUBLE,0,MPI_COMM_WORLD);
+			if (my_rank==0) {
+				
+				writerow(N, end,forOutput);
+				//printArray(forOutput, localN);
+			}
+		}
+
+		//rearrange pointers for next step
+		temp=f0;
+		f0=f1;
+		f1=fend;
+		fend=temp;
+
+		step++;
+	}
 	f0 = originalf0;
 	f1 = originalf1;
+	fend = originalfend;
 	
 	free(f0);
 	free(f1);
+	free(fend);
 	free(forOutput);
 	
 	MPI_Finalize();
