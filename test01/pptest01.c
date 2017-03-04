@@ -4,43 +4,52 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-#define M_PI 3.14159265359
+//#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
-	
 	FILE *fp;
-	fileName = sprintf()
-	fp = fopen("output.pgm", "w");
-	if (fp == NULL) {
+	char outputfile[20];
+	int i;
+	for (int i=1; i<=end; i++){
+		sprintf(outputfile,"output%04d.pgm", i);
+		fp = fopen(outputfile, "w");
+		
+		if (fp == NULL) {
 		printf("sorry can't open output.pgm. Terminating.\n");
 		exit(1);
-	}
-	else {
-		// print a table header
+		}
+		else {
 		fprintf(fp, "%s\n%d %d\n%s\n", "P2", N, end, "255");
 		fclose(fp);
+		}
 	}
 }
-void writerow(int N, double **rawdata) {
+void writerow(int N, int end, double **rawdata) {
 	FILE *fp;
-	fp = fopen("output.pgm", "a");
-	if (fp == NULL) {
-		printf("sorry can't open outfile.pgm. Terminating.\n");
-		exit(1);
+	char outputfile[20];
+	int i;
+	for(int i=1; i<=end; i++){
+		sprintf(outputfile,"output%04d.pgm",i);
+		fp = fopen(outputfile,"a");
 	}
-	else {
-		
-		int i,j;
-	for (int i=0; i<N; i++){
-		for(int j=0; j<N; j++){
-			int val = rawdata[i][j]*127+127;
-			fprintf(fp,"%d ", val);
+		if (fp == NULL) {
+			printf("sorry can't open outfile.pgm. Terminating.\n");
+			exit(1);
 		}
+		else {
+			
+		for(int i=0; i<end; i++){
+			for(int j=0; j<end; j++){
+				int val = rawdata[i][j]*127;
+				fprintf(fp,"%d ", val);
+			}
 			fprintf(fp,"\n");
-		}	
-			fclose(fp);		
+			
+		}
+		fclose(fp);	
 	}
-}		
+		
+}
 
 double initialCondition(double x, double y) {
 	//double sigma=0.01;//tight point
@@ -58,9 +67,9 @@ void printArray(double **array, int localN);
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 6;
+	int N = 20;
 	int localN;
-	int end = 6;//end=20N is roughly 1 period
+	int end = 20;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
 	
 	
@@ -85,11 +94,10 @@ int main(int argc, char *argv[]) {
 	
 	
 	int i,j;
-	 for(i=0; i<N; i++){
+	for(i=0; i<N; i++){
 		 f0[i] = malloc(N*sizeof *f0[i]);
 		 f1[i] = malloc(N*sizeof *f1[i]);
-		 forOutput[i] = malloc(N*sizeof *forOutput[i]);
-		 
+		 forOutput[i] = malloc(N*sizeof *forOutput[i]);	 
 	}
 	
 	double localx = 1.0/(N-1)*my_rank*localN;
@@ -109,7 +117,6 @@ int main(int argc, char *argv[]) {
 			f0[i][j] = initialCondition(x,y);
 			f1[i][j] = initialCondition(x,y);
 		}
-	
 	}	
 	
 	if (my_rank == 0){
@@ -127,8 +134,8 @@ int main(int argc, char *argv[]) {
 	if (writeoutput){
 		MPI_Gather(f1, localN, MPI_DOUBLE, forOutput, localN, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		if (my_rank == 0){
-			writeheader(N, end);
-			writerow(N,forOutput);
+			writeheader(localN, end);
+			writerow(N,end,forOutput);
 		}
 	}
 	
@@ -137,6 +144,7 @@ int main(int argc, char *argv[]) {
 	
 	free(f0);
 	free(f1);
+	free(forOutput);
 	
 	MPI_Finalize();
 	return 0;
