@@ -9,9 +9,9 @@
 void writeheader(int N, int end) {
 	FILE *fp;
 	char outputfile[20];
-	int i;
-	for (int i=0; i<end; i++){
-		sprintf(outputfile,"output%04d.pgm", i);
+	int k;
+	for (int k=0; k<end; k++){
+		sprintf(outputfile,"output%04d.pgm", k);
 		fp = fopen(outputfile, "w");
 		
 		if (fp == NULL) {
@@ -24,7 +24,7 @@ void writeheader(int N, int end) {
 		}
 	}
 }
-void writerow(int N, int end, double **rawdata) {
+void writerow(int end, int N, double **rawdata) {
 	FILE *fp;
 	char outputfile[20];
 	int i,j;
@@ -38,16 +38,16 @@ void writerow(int N, int end, double **rawdata) {
 		}
 		else {
 			//for(int i=0; i<end; i++){
-			for(int j=0; j<end; j++){
+			for(int j=0; j<N; j++){
 				int val = rawdata[i][j]*127;
 				fprintf(fp,"%d ", val);
 			}
 			fprintf(fp,"\n");
-			fclose(fp);	
-		}
-		//fclose(fp);	
+			
+		//}
+		fclose(fp);	
 	}
-		
+}	
 }
 
 double initialCondition(double x, double y) {
@@ -59,16 +59,16 @@ double initialCondition(double x, double y) {
 	return result;
 }
 
-void fInitLeftOuterBounds(double **array, int localN);
-void fInitRightOuterBounds(double **array, int localN);
-void printArray(double **array, int localN);
+void fInitLeftOuterBounds(double **array, int localN, int N);
+void fInitRightOuterBounds(double **array, int localN, int N);
+void printArray(double **array, int localN, int N);
 
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 24;
+	int N = 12;
 	int localN;
-	int end = 24;//end=20N is roughly 1 period
+	int end = 12;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
 	
 	
@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
 		 f1[i] = malloc(N*sizeof *f1[i]);
 		 fend[i] = malloc(N*sizeof *fend[i]);
 		 forOutput[i] = malloc(N*sizeof *forOutput[i]);	 
+		 
 	}
 	
 	double localx = 1.0/(N-1)*my_rank*localN;
@@ -107,38 +108,43 @@ int main(int argc, char *argv[]) {
 	double **originalf0 = f0;
 	double **originalf1 = f1;
 	double **originalfend = fend;
-	//double **originalforOutput = forOutput;
+	double **originalforOutput = forOutput;
 	
 	
 	double x;
 	double y; 
 	
-	for (int i=0; i<localN; i++){
-		for (int j=0; j<=localN; j++){
+	for (int i=1; i<end-1; i++){
+		for (int j=1; j<N-1; j++){
 			x = localx + (double)i*1.0/(N-1);
 			y = localy + (double)j*1.0/(N-1);
 			f0[i][j] = initialCondition(x,y);
 			f1[i][j] = initialCondition(x,y);
+			
 		}
 	}	
 	
 	if (my_rank == 0){
-		fInitLeftOuterBounds(f0,N);
-		fInitLeftOuterBounds(f1,N);
+		fInitLeftOuterBounds(f0,localN, N);
+		fInitLeftOuterBounds(f1,localN, N);
+		fInitLeftOuterBounds(fend, localN, N);
 	
 	}
 	
 	if(my_rank == comm_sz-1){
-		fInitRightOuterBounds(f0,localN);
-		fInitRightOuterBounds(f1,localN);
+		fInitRightOuterBounds(f0,localN, N);
+		fInitRightOuterBounds(f1,localN, N);
+		fInitRightOuterBounds(fend, localN, N);
 		
 	}
 
+	//printArray(f1, localN, N);
 	if (writeoutput){
 		MPI_Gather(f1, localN, MPI_DOUBLE, forOutput, localN, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		if (my_rank == 0){
-			writeheader(localN, end);
-			writerow(N,end,forOutput);
+			writeheader(localN, N);
+			writerow(localN, N, forOutput);
+			//printArray(forOutput,localN, N);
 		}
 	}
 		
@@ -158,39 +164,43 @@ int main(int argc, char *argv[]) {
 	int step = 2;//current step
 	while (step<=end) {
 		//send right
-		MPI_Sendrecv(&f1[1][localN-1],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[localN-1][N],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		//send left
-		MPI_Sendrecv(&f1[1][0],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[localN][N],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
 		//put next step in f2:
 		//compute interior of my domain
 		for (int i=1; i<localN-1; i++){
-		for (int j=1; j<=localN-2; j++){
-			fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			for (int j=1; j<N-1; j++){
+				fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			
 			
+			}
 		}
-	}
-		//printArray(fend, localN);
+		//printArray(fend, localN, N);
+		
 		//compute left edge of my domain
 		if (my_rank!=0) {
-			int i=0;
+			int i=1;
+			int j=0;
 			fend[i][j] = 0.01*(leftneighbor+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			
 		}
 		//compute right edge of my domain
 		if (my_rank!=comm_sz-1) {
 			int i=localN-1;
+			int j= N-2;
 			fend[i][j] = 0.01*(f1[i-1][j]+rightneighbor+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			
 		}
+	
 		//printArray(fend, localN);
 		//write output
 		if (writeoutput) {
 			MPI_Gather(fend,localN,MPI_DOUBLE,forOutput,localN,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			if (my_rank==0) {
 				
-				writerow(N, end,forOutput);
+				writerow(N, localN,forOutput);
 				//printArray(forOutput, localN);
 			}
 		}
@@ -203,41 +213,48 @@ int main(int argc, char *argv[]) {
 
 		step++;
 	}
+
 	f0 = originalf0;
 	f1 = originalf1;
 	fend = originalfend;
+	forOutput = originalforOutput;
 	
 	free(f0);
 	free(f1);
 	free(fend);
 	free(forOutput);
 	
+	
 	MPI_Finalize();
 	return 0;
 }
 	
-void fInitLeftOuterBounds(double **array, int localN){
+void fInitLeftOuterBounds(double **array, int localN, int N){
 	int i,j;
 	for (int i=0; i<localN; i++){
-		for(int j=0; j<localN; j++){
+		for(int j=0; j<N; j++){
 			array[0][j] = 0;
+			array[localN-1][j];
 			array[i][0] = 0;
+			array[0][N-1]=0;
 		}
 	}
 }
-void fInitRightOuterBounds(double **array, int localN){
+void fInitRightOuterBounds(double **array, int localN, int N){
 	int i,j;
 	for (int i=0; i<localN; i++){
-		for(int j=0; j<localN; j++){
+		for(int j=0; j<N; j++){
 			array[localN-1][j] = 0;
-			array[i][localN-1] = 0;
+			array[i][N-1] = 0;
+			array[i][0] = 0;
+			array[0][j] = 0;
 		}
 	}
 }
-void printArray(double **array, int localN){
+void printArray(double **array, int localN, int N){
 	int i,j;
 	for (int i=0; i<localN; i++){
-		for(int j=0; j<localN; j++){
+		for(int j=0; j<N; j++){
 			printf("%f  ", array[i][j]);
 		}
 			printf("\n");
