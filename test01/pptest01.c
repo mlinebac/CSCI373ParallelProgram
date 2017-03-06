@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-//#define M_PI 3.14159265359
+#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -66,11 +66,11 @@ void printArray(double **array, int localN, int N);
 int main(int argc, char *argv[]) {
 	int comm_sz;
 	int my_rank;
-	int N = 12;
+	int N = 8;
 	int localN;
-	int end = 12;//end=20N is roughly 1 period
+	int end = 8;//end=20N is roughly 1 period
 	int writeoutput = 1;//0 for false
-	
+	int i,j;
 	
 	MPI_Init(NULL,NULL);
 	MPI_Comm_size(MPI_COMM_WORLD,&comm_sz);
@@ -93,7 +93,6 @@ int main(int argc, char *argv[]) {
 	double **forOutput = malloc(N * sizeof *forOutput);
 	double **temp;
 	
-	int i,j;
 	for(i=0; i<N; i++){
 		 f0[i] = malloc(N*sizeof *f0[i]);
 		 f1[i] = malloc(N*sizeof *f1[i]);
@@ -147,27 +146,29 @@ int main(int argc, char *argv[]) {
 			//printArray(forOutput,localN, N);
 		}
 	}
-		
-	double leftneighbor=0.0;
-	double rightneighbor=0.0;
 	
-	int partnerRight = my_rank+1;
-	int partnerLeft = my_rank-1;
-	if (partnerRight==comm_sz) {
-		partnerRight=MPI_PROC_NULL;
+	double topNeighbor[N];
+	double bottomNeighbor[N];
+	
+	 
+	int partnerBottom = my_rank+1; //proc 1
+	int partnerTop = my_rank-1; //proc 0
+	
+	if (partnerBottom==comm_sz) {
+		partnerBottom=MPI_PROC_NULL;
 	}
-	if (partnerLeft==-1) {
-		partnerLeft=MPI_PROC_NULL;
+	if (partnerTop==-1) {
+		partnerTop=MPI_PROC_NULL;
 	}
 
 	//main loop
 	int step = 2;//current step
 	while (step<=end) {
-		//send right
-		MPI_Sendrecv(&f1[0][N],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		//send left
-		MPI_Sendrecv(&f1[localN-1][N],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-
+		//send bottom
+		MPI_Sendrecv(&f1[0][N],N,MPI_DOUBLE,partnerBottom,0,&topNeighbor,N,MPI_DOUBLE,partnerTop,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		//send top
+		
+		MPI_Sendrecv(&f1[localN][N],N,MPI_DOUBLE,partnerTop,0,&bottomNeighbor,N,MPI_DOUBLE,partnerBottom,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		//put next step in f2:
 		//compute interior of my domain
 		for (int i=1; i<localN-1; i++){
@@ -177,32 +178,32 @@ int main(int argc, char *argv[]) {
 			
 			}
 		}
-		//printArray(fend, localN, N);
-		
-		//compute left edge of my domain
+		printArray(fend, localN, N);
+		//compute top edge of my domain
 		if (my_rank!=0) {
 			for (int i=1; i<localN-1; i++){
 				for (int j=1; j<N-1; j++){
-					fend[i][j] = 0.01*(f1[i-1][j]+leftneighbor+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+					fend[i][j] = 0.01*(topNeighbor[j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 				}
 			}
 		}
-		//compute right edge of my domain
+		//printArray(fend, localN, N);
+		//compute bottom edge of my domain
 		if (my_rank!=comm_sz-1) {
 			for (int i=1; i<localN-1; i++){
 				for (int j=1; j<N-1; j++){
-					fend[i][j] = 0.01*(rightneighbor+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+					fend[i][j] = 0.01*(f1[i-1][j]+bottomNeighbor[j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 				}	
 			}
 		}
-		//printArray(fend, localN);
+		//printArray(fend, localN, N);
 		//write output
 		if (writeoutput) {
 			MPI_Gather(fend,localN,MPI_DOUBLE,forOutput,localN,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			if (my_rank==0) {
 				
 				writerow(N, localN,forOutput);
-				printArray(forOutput, localN, N);
+				//printArray(fend, localN, N);
 			}
 		}
 
