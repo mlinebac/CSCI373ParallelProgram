@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
 		}
 	}	
 	
-	if (my_rank == 0){
+	/*if (my_rank == 0){
 		fInitLeftOuterBounds(f0,localN, N);
 		fInitLeftOuterBounds(f1,localN, N);
 		fInitLeftOuterBounds(fend, localN, N);
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
 		fInitRightOuterBounds(fend, localN, N);
 		
 	}
-
+*/
 	//printArray(f1, localN, N);
 	if (writeoutput){
 		MPI_Gather(f1, localN, MPI_DOUBLE, forOutput, localN, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -164,9 +164,9 @@ int main(int argc, char *argv[]) {
 	int step = 2;//current step
 	while (step<=end) {
 		//send right
-		MPI_Sendrecv(&f1[localN-1][N],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[0][N],1,MPI_DOUBLE,partnerRight,0,&leftneighbor,1,MPI_DOUBLE,partnerLeft,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		//send left
-		MPI_Sendrecv(&f1[localN][N],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[localN-1][N],1,MPI_DOUBLE,partnerLeft,0,&rightneighbor,1,MPI_DOUBLE,partnerRight,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
 		//put next step in f2:
 		//compute interior of my domain
@@ -181,19 +181,20 @@ int main(int argc, char *argv[]) {
 		
 		//compute left edge of my domain
 		if (my_rank!=0) {
-			int i=1;
-			int j=0;
-			fend[i][j] = 0.01*(leftneighbor+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
-			
+			for (int i=1; i<localN-1; i++){
+				for (int j=1; j<N-1; j++){
+					fend[i][j] = 0.01*(f1[i-1][j]+leftneighbor+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+				}
+			}
 		}
 		//compute right edge of my domain
 		if (my_rank!=comm_sz-1) {
-			int i=localN-1;
-			int j= N-2;
-			fend[i][j] = 0.01*(f1[i-1][j]+rightneighbor+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
-			
+			for (int i=1; i<localN-1; i++){
+				for (int j=1; j<N-1; j++){
+					fend[i][j] = 0.01*(rightneighbor+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+				}	
+			}
 		}
-	
 		//printArray(fend, localN);
 		//write output
 		if (writeoutput) {
@@ -201,7 +202,7 @@ int main(int argc, char *argv[]) {
 			if (my_rank==0) {
 				
 				writerow(N, localN,forOutput);
-				//printArray(forOutput, localN);
+				printArray(forOutput, localN, N);
 			}
 		}
 
