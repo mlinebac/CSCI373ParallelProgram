@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 //#ifndef M_PI
-//#define M_PI 3.14159265359
+#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -37,17 +37,14 @@ void writerow(int end, int N, double **rawdata) {
 			exit(1);
 		}
 		else {
-			//for(int i=0; i<end; i++){
 			for(int j=0; j<N; j++){
 				int val = rawdata[i][j]*127;
 				fprintf(fp,"%d ", val);
 			}
 			fprintf(fp,"\n");
-			
-		//}
-		fclose(fp);	
-	}
-}	
+			fclose(fp);	
+		}
+	}	
 }
 
 double initialCondition(double x, double y) {
@@ -113,7 +110,7 @@ int main(int argc, char *argv[]) {
 	double x;
 	double y; 
 	
-	for (int i=1; i<end-1; i++){
+	for (int i=1; i<N-1; i++){
 		for (int j=1; j<N-1; j++){
 			x = localx + (double)i*1.0/(N-1);
 			y = localy + (double)j*1.0/(N-1);
@@ -123,28 +120,18 @@ int main(int argc, char *argv[]) {
 		}
 	}	
 	
-	/*if (my_rank == 0){
-		fInitLeftOuterBounds(f0,localN, N);
-		fInitLeftOuterBounds(f1,localN, N);
-		fInitLeftOuterBounds(fend, localN, N);
-	
-	}
-	
-	if(my_rank == comm_sz-1){
-		fInitRightOuterBounds(f0,localN, N);
-		fInitRightOuterBounds(f1,localN, N);
-		fInitRightOuterBounds(fend, localN, N);
-		
-	}
-*/
 	//printArray(f1, localN, N);
+	for(int j=0; j<N; j++){
+		printf("%f ",f1[localN/2-1][j]);
+	}
+	
 	if (writeoutput){
 		MPI_Gather(f1, N, MPI_DOUBLE, forOutput, N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		if (my_rank == 0){
 			writeheader(localN, N);
 			writerow(localN, N, forOutput);
-			printf("from proc 0 \n");
-			printArray(forOutput,localN, N);
+			//printf("from proc 0 \n");
+			printArray(forOutput,end, N);
 			
 		}
 	}
@@ -153,48 +140,48 @@ int main(int argc, char *argv[]) {
 	double downNeighbor[N];
 	
 	 
-	int partnerDown = my_rank+1; //proc 1
-	int partnerUp = my_rank-1; //proc 0
+	int partnerDown = my_rank+1; 
+	int partnerUp = my_rank-1; 
 	
-	if (partnerDown=comm_sz) {
+	if (partnerDown == comm_sz) {
 		partnerDown=MPI_PROC_NULL;
 	}
-	if (partnerUp==-1) {
+	if (partnerUp == -1) {
 		partnerUp=MPI_PROC_NULL;
 	}
-
+	
 	//main loop
 	int step = 2;//current step
 	while (step<=end) {
 		//send bottom
-		MPI_Sendrecv(&f1[localN-1],N,MPI_DOUBLE,partnerDown,0,&upNeighbor,N,MPI_DOUBLE,partnerUp,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		
+		MPI_Sendrecv(&f1[localN-1],N,MPI_DOUBLE,partnerDown,0,&downNeighbor,N,MPI_DOUBLE,partnerUp,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		//send top
-		MPI_Sendrecv(&f1[1],N,MPI_DOUBLE,partnerUp,0,&downNeighbor,N,MPI_DOUBLE,partnerDown,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Sendrecv(&f1[localN],N,MPI_DOUBLE,partnerUp,0,&upNeighbor,N,MPI_DOUBLE,partnerDown,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		
+		
 		//put next step in f2:
 		//compute interior of my domain
 		for (int i=1; i<localN-1; i++){
-			for (int j=1; j<N-1; j++){
+			for (int j=1; j<N-2; j++){
 				fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
-			
-			
 			}
 		}
 		//printArray(fend, localN, N);
+		//printf("\n");
 		//compute top edge of my domain
 		if (my_rank!=0) {
-			int i = 1; 
-			for (int j=1; j<N-1; j++){
-					fend[i][j] = 0.01*(upNeighbor[j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			//int i = localN; 
+			for (int j=1; j<N-2; j++){
+					fend[localN][j] = 0.01*(upNeighbor[j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			}
 		}
 		
-		printArray(fend, localN, N);
+		//printArray(fend, localN, N);
 		//compute bottom edge of my domain
 		if (my_rank!=comm_sz-1) {
-			int i = localN-1;
-			for (int j=1; j<N-1; j++){
-					fend[i][j] = 0.01*(f1[i-1][j]+downNeighbor[j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+			//int i = localN-1;
+			for (int j=1; j<N-2; j++){
+					fend[localN-1][j] = 0.01*(f1[i-1][j]+downNeighbor[j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 			}	
 		}
 		//printArray(fend, localN, N);
@@ -203,7 +190,8 @@ int main(int argc, char *argv[]) {
 			MPI_Gather(fend,N,MPI_DOUBLE,forOutput,N,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			if (my_rank==0) {
 				writerow(N, localN,forOutput);
-				printArray(forOutput, localN, N);
+				//printf("from proc 0 after end steps\n");
+				//printArray(forOutput, end, N);
 			}
 		}
 		//printArray(forOutput, localN, N);
@@ -214,6 +202,7 @@ int main(int argc, char *argv[]) {
 		fend=temp;
 
 		step++;
+
 	}
 
 	f0 = originalf0;
