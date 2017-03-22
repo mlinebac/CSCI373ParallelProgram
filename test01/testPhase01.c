@@ -3,8 +3,8 @@
 #include <mpi.h>
 #include <stdlib.h>
 #include <math.h>
-#ifndef M_PI
-#define M_PI 3.14159265359
+//#ifndef M_PI
+//#define M_PI 3.14159265359
 
 void writeheader(int N, int end) {
 	FILE *fp;
@@ -19,7 +19,7 @@ void writeheader(int N, int end) {
 		exit(1);
 		}
 		else {
-		fprintf(fp, "%s\n%d %d\n%s\n", "P2", N, end, "255");//change this to N, N
+		fprintf(fp, "%s\n%d %d\n%s\n", "P2", N, end, "255");
 		fclose(fp);
 		}
 	}
@@ -28,7 +28,7 @@ void writerow(int N, double **rawdata) {
 	FILE *fp;
 	char outputfile[20];
 	int i,j;
-	for(int i=0; i<N; i++){ //change this to N
+	for(int i=0; i<N; i++){ 
 		sprintf(outputfile,"output%04d.pgm",i);
 		fp = fopen(outputfile,"a");
 		
@@ -38,7 +38,7 @@ void writerow(int N, double **rawdata) {
 		}
 		else {
 			for(int j=0; j<N; j++){
-				int val = rawdata[i][j]*254; //change this to *254+127
+				int val = rawdata[i][j]*254; 
 				fprintf(fp,"%d ", val);
 			}
 			fprintf(fp,"\n");
@@ -91,26 +91,24 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 	
-	double **f0 = ((double**)malloc(sizeof(double*)*localEnd));
-	double **f1 = ((double**)malloc(sizeof(double*)*localEnd));
-	double **fend = ((double**)malloc(sizeof(double*)*localEnd));
-	double **forOutput = ((double**) malloc(sizeof(double*)*localEnd));
-	double **temp = ((double**)malloc(sizeof(double*)*localEnd));
+	double **f0 = (double **)malloc(sizeof(double *) * localEnd);
+	double **f1 = (double **)malloc(sizeof(double *) * localEnd);
+	double **fend = (double **)malloc(sizeof(double *) * localEnd);
+	double **forOutput = (double **)malloc(sizeof(double *) * localEnd);
+	double **temp; 
 	
-	f0[0] = ((double *)malloc(sizeof(double)* localEnd * N ));
-	f1[0] = ((double *)malloc(sizeof(double)* localEnd * N ));
-	fend[0] = ((double *)malloc(sizeof(double)* localEnd * N));
-	forOutput[0] = ((double *)malloc(sizeof(double)* localEnd * N));
-	temp[0]= ((double*)malloc(sizeof(double)* localEnd*N));
+	f0[0] = (double *)malloc(sizeof(double) * N * localEnd);
+	f1[0] = (double *)malloc(sizeof(double) * N * localEnd);
+	fend[0] = (double *)malloc(sizeof(double) * N * localEnd);
+	forOutput[0] = (double *)malloc(sizeof(double) * N *localEnd);
 	
-	for(i=0; i<localEnd; i++){ //change this to one array row
-		f0[i] = (*f0 + N * i);
-		f1[i] = (*f1 + N * i);
-		fend[i] = (*fend + N * i);
-		forOutput[i] = (*forOutput + N * i);
-		temp[i] = (*temp + N * i);
+	for(i=0; i<localEnd; i++){ 
+		f0[i] = (*f0 + N * localEnd);
+		f1[i] = (*f1 + N * localEnd);
+		fend[i] = (*fend + N * localEnd);
+		forOutput[i] = (*forOutput + N * localEnd);
 	}
-	printArray(fend, localEnd, N);
+	
 	double localx = 1.0/(N-1)*my_rank*localEnd;
 	double localy = 1.0/(N-1)*my_rank*localEnd;
 	
@@ -122,26 +120,26 @@ int main(int argc, char *argv[]) {
 	double x;
 	double y; 
 	
-	for	(int i = 1; i<localEnd-1; i++){
+	for	(int i=1; i<localEnd-1; i++){
 		for (int j=1; j<N-1; j++){
 			x = localx + (double)i*1.0/(N-1);
 			y = localy + (double)j*1.0/(N-1);
 			f0[i][j] = initialCondition(x,y);
-			f1[i][j] = initialCondition(x,y);	
-		}
-	}	
-	//printArray(f1, localEnd, N);
-	if (writeoutput){
-		MPI_Gather(f1,localEnd*N, MPI_DOUBLE, forOutput, localEnd*N, MPI_DOUBLE, 0, MPI_COMM_WORLD); //change this to localN x N
-		if (my_rank == 0){
-			writeheader(N, end);
-			writerow(N, forOutput);
-			//printArray(forOutput, localEnd, N);
+			f1[i][j] = initialCondition(x,y);
 		}
 	}
 	
-	double topNeighbor[N];
-	double bottomNeighbor[N];
+	if (writeoutput){
+		MPI_Gather(f1,localEnd * N, MPI_DOUBLE, 
+				forOutput, localEnd * N, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		if (my_rank == 0){
+			writeheader(N,end);
+			writerow(N, forOutput);
+		}
+	}
+	
+	double **topNeighbor;
+	double **bottomNeighbor;
 	
 	int partnerBottom = my_rank+1; 
 	int partnerTop = my_rank-1; 
@@ -152,37 +150,35 @@ int main(int argc, char *argv[]) {
 	if (partnerTop == -1) {
 		partnerTop=MPI_PROC_NULL;
 	}
-	
-		//for(int j= 0; j<N; j++){
-		//printf("%f", f1[localEnd/2][j]);
-	//}
-
-	//main loop
 	int step = 2;//current step
 	while (step<=end) {
 		//send to bottom       
-		for(int j=0; j<N; j++){
-		MPI_Sendrecv(&f1[localEnd-1][j],j,MPI_DOUBLE,partnerBottom,0,
-						 topNeighbor,j,MPI_DOUBLE,partnerTop,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		//send to top
-		MPI_Sendrecv(&f1[0][j],j,MPI_DOUBLE,partnerTop,0,
-					bottomNeighbor,j,MPI_DOUBLE,partnerBottom,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		}
-		//MPI_Barrier(MPI_COMM_WORLD);
 		
-		//printArray(f1,localEnd,N);
+		if(my_rank!=comm_sz-1){
+			for(int j=0; j<N; j++){	
+				MPI_Sendrecv(&f1[localEnd-1][j],N,MPI_DOUBLE,partnerBottom,0,
+							&topNeighbor,N,MPI_DOUBLE,partnerTop,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			}
+		}
+		//send to top
+		if(my_rank!=0){
+			for(int j=0; j<N; j++){
+				MPI_Sendrecv(&f1[0][j],N,MPI_DOUBLE,partnerTop,0,
+							&bottomNeighbor,N,MPI_DOUBLE,partnerBottom,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			}
+		}
 		//put next step in f2:
 		//compute interior of my domain
 			if(my_rank!=0){ 
-				for (int i=1; i<localEnd-2; i++){ 
+				for (int i=1; i<localEnd-1; i++){ 
 					for (int j=1; j<N-2; j++){
 						fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 					}
 				}
 			}
-			//printArray(fend, localEnd, N);
+		
 			if(my_rank!=comm_sz-1){
-				for (int i=1; i<localEnd-2; i++){
+				for (int i=1; i<localEnd-1; i++){
 					for (int j=1; j<N-2; j++){
 						fend[i][j]= 0.01*(f1[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
 					}
@@ -192,29 +188,29 @@ int main(int argc, char *argv[]) {
 		//compute top edge of my bottom domain
 		if (my_rank!=0) {
 			int i = 0;
-			for (int j=1; j<N-1; j++){
-					fend[i][j] = 0.01*(topNeighbor[j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+				for (int j=1; j<N-1; j++){
+					fend[i][j] = 0.01*(topNeighbor[i-1][j]+f1[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+				}
 			}
-		}
-		//printArray(fend, localEnd, N);
+		
+		
 		//compute bottom edge of my top domain
 		if (my_rank!=comm_sz-1) {
 			int i = localEnd-1;
-			for (int j=1; j<N-1; j++){
-					fend[i][j] = 0.01*(f1[i-1][j]+bottomNeighbor[j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
-			}	
-		}
-		//printArray(fend, localEnd, N);
+				for (int j=1; j<N-1; j++){
+					fend[i][j] = 0.01*(f1[i-1][j]+bottomNeighbor[i+1][j]+f1[i][j-1]+f1[i][j+1]-4*f1[i][j])+2*f1[i][j]-f0[i][j];
+				}
+			}
+	
 		//write output
 		if (writeoutput) {
-			MPI_Gather(fend,localEnd * N,MPI_DOUBLE,forOutput,localEnd * N,MPI_DOUBLE,0,MPI_COMM_WORLD);
+			MPI_Gather(fend,localEnd * N,MPI_DOUBLE,
+					forOutput,localEnd * N,MPI_DOUBLE,0,MPI_COMM_WORLD);
 			if (my_rank==0) {
 				writerow(N, forOutput);
-				//printf("from proc 0 after end steps\n");
-				//printArray(forOutput, localEnd, N);
+				printArray(forOutput, localEnd, N);
 			}
 		}
-		//printArray(forOutput, localN, N);
 		//rearrange pointers for next step
 		temp=f0;
 		f0=f1;
@@ -225,11 +221,6 @@ int main(int argc, char *argv[]) {
 
 	}
 
-	f0 = originalf0;
-	f1 = originalf1;
-	fend = originalfend;
-	forOutput = originalforOutput;
-	
 	free(f0);
 	free(f1);
 	free(fend);
@@ -239,4 +230,3 @@ int main(int argc, char *argv[]) {
 	
 	return 0;
 }
-
