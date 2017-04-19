@@ -1,0 +1,20 @@
+﻿Matt Lineback
+HW06 
+CSCI 373 Parallel Programming 
+April 7th 2017
+
+
+Original	M x N			M x N			M x N
+Threads	8000000 X 8		8000 X 8000		8 X 8000000		
+1		3.99			3.86			3.86
+2		2.27			2.18			3.16
+4		2.20			2.11			3.67
+
+Modified	M x N			M x N			M x N
+Threads	8000000 X 8		8000 X 8000		8 X 8000000		
+1		4.11			3.64			3.63
+2		2.50			2.06			2.08
+4		2.40			1.92			1.95
+
+
+After comparing the original code results with the modified code, I found that there was a little speed up in processing time when the matrix(M) was equal in size to the vector(N) and also when the matrix(M) was smaller than the vector(N). Although when the matrix was larger than the vector size I actually had less speed up than in the original code. 
